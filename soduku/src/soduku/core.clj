@@ -1,8 +1,14 @@
 (ns soduku.core
   (:require [clojure.java.io :as io]
-            [clojure.string :as str])
+            [clojure.string :as str]
+            [clojure.test :as ct])
   (:gen-class))
 
+;; here are some soduku "solutions"
+;; some of them are right, some of them are wrong
+;;
+;; to be compact, we represent these as 81 character strings (a 9x9 puzzle)
+;;
 (def oops-puzzles
   ["864371259325849761971265843436192587198657432257483916689734125713528694542916378"
    "346179258187523964529648371965832417472916835813754629798261543631485792254397186"
@@ -106,6 +112,116 @@
    "647238519915476238328519467791652843563784921482391756839125674276843195154967382"
    "456971238821643795397285146634857912782169354519432687268394571173528469945716823"
    "267954813918236745543817629326579184189423576475168392891345267652791438734682951"])
+
+;; session 1 - we made a function to convert a character to an integer
+;; we leveraged that to make an array of integer out of the string
+
+(defn- ch->int
+  "converts a single char to integer value"
+  [ch]
+  (- (int ch) 48))
+
+(defn- str->int
+  [str]
+  "converts a string of digits to array of int"
+  (mapv ch->int str))
+
+;; session 2 -
+;; in soduko, the game consists of 9-element artifacts that are
+;; rows, columns, or 3x3 cells.  The things we want to do are
+;; related to these being handled similarly.
+;;
+;; thus, the next logical step is to develop some functions that let us
+;; extract these artifacts from the game.
+;;
+
+;; we'll start learning how to do unit-testing, to help us along
+
+(ct/deftest simple-pass
+  (ct/is (> 2 1)))
+
+(ct/deftest simple-fail
+  (ct/is (> 1 2)))
+
+;; run your "test test" as:
+(comment
+  (ct/run-tests)
+  )
+
+;; so, we want to define some primatives to fetch the "nth" row, column cell for n in [0..3)
+;; which we will get to shortly
+
+;; but now, for some TDD - test driven dentistry!
+
+;; about range
+(ct/deftest about-range
+  (ct/is (= (range 3) '(0 1 2))))
+
+;; about for
+(ct/deftest about-for-1
+  (ct/is (= (for [i (range 3)]
+              '(0 1 2)))))
+
+(ct/deftest about-for-2
+  (ct/is (= (for [j (range 3)] (* 3 j))
+            '(0 3 6))))
+
+(ct/deftest about-for-3
+  (ct/is (= (for [i (range 3) j (range 3)] [i j])
+            '([0 0] [0 1] [0 2] [1 0] [1 1] [1 2] [2 0] [2 1] [2 2]))))
+
+;; some more confusion - all of the above return abstract sequences, which appear as lists ('())
+;; if you want to use vectors ([]) then you need to drag the sequences back into vectors
+;; which is most easily accomplished with 'into'
+(ct/deftest about-into
+  (let [a-seq (range 3)
+        a-vec (into [] a-seq)]
+    (ct/is a-seq '(0 1 2))
+    (ct/is a-vec [0 1 2])))
+
+;;  so - we are ready to define 3 functions row-indicies, col-indicies, cell-indicies
+;;  these give us the indicies of the constituants
+
+(defn row-indicies [i]
+  nil)
+
+(defn col-indicies [j]
+  nil)
+
+(defn cell-indicies [c]
+  nil)
+
+;; these we need to make work
+#_(ct/deftest row-idx-test
+  (ct/is (row-indicies 0)
+         [0 1 2 3 4 5 6 7 9])
+  (ct/is (row-indicies 2)
+         [18 19 20 21 22 23 24 25 26]))
+
+#_(ct/deftest col-idx-test
+  (let [c0 (into [] (for [i range 9] (* 9 i)))
+        c2 (map (fn [i] (* i 3)) c0)])
+  (ct/is (col-indicies 0) c0)
+  (ct/is (col-indicies 2) c2))
+
+#_(ct/deftest cell-idx-test
+  (let [c0 [0 1 2  9 10 11  18 19 20]
+        c4 (map #(+ 12 %) c0)]
+    (ct/is (cell-indicies 0 c0)
+           (cell-indicies 4 c4))))
+
+(def test-game
+  (str "598326147"
+       "314957628"
+       "672481935"
+       
+       "753648291"
+       "421539876"
+       "869172453"
+       
+       "285764319"
+       "936215784"
+       "147893562"))
 
 
 (defn -main
