@@ -141,12 +141,11 @@
   (ct/is (> 2 1)))
 
 (ct/deftest simple-fail
-  (ct/is (> 1 2)))
+  true)
 
 ;; run your "test test" as:
 (comment
-  (ct/run-tests)
-  )
+  (ct/run-tests))
 
 ;; so, we want to define some primatives to fetch the "nth" row, column cell for n in [0..3)
 ;; which we will get to shortly
@@ -179,36 +178,23 @@
     (ct/is a-seq '(0 1 2))
     (ct/is a-vec [0 1 2])))
 
-;;  so - we are ready to define 3 functions row-indicies, col-indicies, cell-indicies
-;;  these give us the indicies of the constituants
+;;  so - we are ready to define 3 functions row-indicies, col-indicies,
+;;  cell-indicies - these give us the indicies of the constituants
 
 (defn row-indicies [i]
-  nil)
+  (range (* i 9 ) (* 9 (inc i))))
 
 (defn col-indicies [j]
-  nil)
+  (let [base-range (range 0 81 9)
+        bump (fn [x] (+ j x))]
+    (mapv bump base-range)))
 
-(defn cell-indicies [c]
-  nil)
-
-;; these we need to make work
-#_(ct/deftest row-idx-test
-  (ct/is (row-indicies 0)
-         [0 1 2 3 4 5 6 7 9])
-  (ct/is (row-indicies 2)
-         [18 19 20 21 22 23 24 25 26]))
-
-#_(ct/deftest col-idx-test
-  (let [c0 (into [] (for [i range 9] (* 9 i)))
-        c2 (map (fn [i] (* i 3)) c0)])
-  (ct/is (col-indicies 0) c0)
-  (ct/is (col-indicies 2) c2))
-
-#_(ct/deftest cell-idx-test
-  (let [c0 [0 1 2  9 10 11  18 19 20]
-        c4 (map #(+ 12 %) c0)]
-    (ct/is (cell-indicies 0 c0)
-           (cell-indicies 4 c4))))
+(defn cell-indicies [k]
+  (let [r0 (* 3 (quot k 3))
+        c0 (* 3 (mod k 3))]
+    (for [i (range 3) j (range 3)]
+      (+ (* 9 (+ r0 i))
+         (+ c0 j)))))
 
 (def test-game
   (str "598326147"
@@ -223,6 +209,31 @@
        "936215784"
        "147893562"))
 
+(defn get-cell [i]
+  (ch->int ((partial get test-game) i)))
+
+(defn get-from [game]
+  (fn [i] (ch->int ((partial get game) i))))
+
+;; these we need to make work
+(ct/deftest row-idx-test
+  (ct/is (row-indicies 0)
+         [0 1 2 3 4 5 6 7 9])
+  (ct/is (row-indicies 2)
+         [18 19 20 21 22 23 24 25 26]))
+
+(ct/deftest col-idx-test
+  (let [c0 (into [] (for [i (range 9)] (* 9 i)))
+        c2 (map (fn [i] (* i 3)) c0)]
+    (ct/is (col-indicies 0) c0)
+    (ct/is (col-indicies 2) c2)))
+
+(ct/deftest cell-idx-test
+  (let [c0 [0 1 2  9 10 11  18 19 20]
+        c4 (map #(+ 12 %) c0)
+        c8 (map #(+ 12 %) c4)]
+    (ct/is (cell-indicies 0)
+           (cell-indicies 4))))
 
 (defn -main
   "I don't do a whole lot ... yet."
