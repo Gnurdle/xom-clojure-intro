@@ -199,7 +199,7 @@
 (def test-game
   (str "598326147"
        "314957628"
-       "672481935"
+       "672489935"
        
        "753648291"
        "421539876"
@@ -235,7 +235,42 @@
     (ct/is (cell-indicies 0)
            (cell-indicies 4))))
 
+(defn- entity-of [p idx-fn i]
+  (mapv (partial get p) (idx-fn i)))
+
+(defn- is-solved? [entity]
+  (= (into #{} (range 1 10))
+     (into #{} entity)))
+
+(ct/deftest test-is-solved
+  (ct/is (is-solved? [1 2 3 4 5 6 7 8 9]) true)
+  (ct/is (not (is-solved? [1 1 2 3 4 5 6 7 8])))
+  (ct/is (not (is-solved? [])))
+  (ct/is (not (is-solved? [9 8 7 6 5 4 3 2 2])))
+  )
+
+
+(defn is-puzzle-solved?
+  [text-puzzle]
+  (let [int-puzzle (str->int text-puzzle)
+        entities (for [idx-fn [row-indicies col-indicies cell-indicies]
+                       i (range 9)]
+                   (entity-of int-puzzle idx-fn i))]
+    (loop [entities entities]
+      (let [entity (first entities)]
+        (if entity
+          (if (is-solved? entity)
+            (recur (rest entities))
+            false)
+          true)))))
+
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]
-  (println "Hello, World!"))
+
+  (loop [puzzles oops-puzzles]
+    (let [p (first puzzles)]
+      (when p
+        (if-not (is-puzzle-solved? p)
+          (println "invalid:" p))
+        (recur (rest puzzles))))))
