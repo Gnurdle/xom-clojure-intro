@@ -1,154 +1,81 @@
-(ns warmups.core
-  (:gen-class))
+(ns warmups.data)
 
-;; Stage 1: Data
+;; Session 2 - Homoiconicity -> using `data` to specify `code`, rather than
+;; inducing a `syntax`
 ;;
-;; An extensible data notation - EDN primer
-;; https://github.com/edn-format/edn
-;;
-;; building-blocks of "data":
-
-;; the `nothing`
-nil
-
-;; bool
-true false
-
-;; numbers 
-100   ;; int
-100.5 ;; float
-22/7  ;; ratio
-123123123123123123123123123123123123123123123123123N ;; bigint (N)
-3.1415926535897932384626433832795028841971693993751058209749445923078164M ;; bigdec (M)
-
-;; strings
-"hello" "now go \"away\""
-
-;; chars 
-\a \z \1 \*
-
-;; regexs
-#"^a.*z%"
-
-;; the "extensible part" - tagged literals <tag> <str>, they can be passively conveyed.
-#uuid "f81d4fae-7dec-11d0-a765-00a0c91e6bf6"
-#inst "2018-03-28T10:48:00.000"
-
-;; Symbols
-;; - start with non-numeric
-;; - rest [:alphanum: *+!-_'?]
-;; - (ignore leading quote for now, not part of symbol)
-'x
-'x42
-'your-mom's-phone-number
-'us+them
-'*i-cant-hear-YOU*
-'S...O---S...!
-'my#munny->mybank!!!
-
-;; the domain of symbols be kind of jolting to somebody that reads a lot of c-style code
-
-;; Keywords (interns to itself, think 'enum')
-:im-a-keyword :street-address :email
-
-;; Namespaces
-'math/pi :data/phone-number 'math.com/PI
-
-;; Aggregates
-
-'(1 "two" 3)                             ;; list, vis std::list (again that quote thing)
-[10 "twenty" 30]                         ;; vector, vis std::vector
-#{:a 14 101.2 "feline"}                  ;; set, vis std::set
-{:a 10 :b "hello" 14 "world" :pi 22/7}   ;; map, vis std::map
-
-;; all of these can be nested/composed arbitrarily
-[{:a 10 :b "x"} ["one" "two" ["eleven" "twelve"]]]
-{:name "Billy Bob"
- :us-citizen true
- :spouse "Crystal" :favorite-charity nil
- :smoker false :drinker true
- :id #uuid "f81d4fae-7dec-11d0-a765-00a0c91e6bf6"
- :residence-type :trailer
- :children [{:name "scooter" :age 4 :gender :m}
-            {:name "daisy"   :age 6 :gender :f}
-            {:name "bubba"   :age 9 :gender :u}]
- :favorite-foods #{"beer" "bbq" "venison"}}
-
-;; and that's all there is to EDN data
-
-;; could think about it like a super-JSON, which adds boolean literals, ratio, bigint, bigdec
-;; symbols, keywords, tagged literals, namespaces, and specificity in aggregations with
-;; lists, vectors, sets, and maps.
-;;
-;; or not, JSON doesn't really do all that much...
-;;
-;; the proposal is that with these building blocks, you can model any kind of data-at-rest
-;; found in the wild without having to water it down, or subject it to ambiguity induction
-;; (like modelling dates as strings, not differentiating numeric types, only having two
-;; aggregation mechanisms (object and vector)
-;;
-;; so that is data - a good balance between machine and human readability
-
-;; -------------------------------------
-
-;; Stage 2 - Homoiconicity -> using data to create code
-
 ;; with a couple of rules, we can use our ability to create data to create code,
 ;; which when evaluated,  yield programs.
 ;;
-;; the ability to write code in the same language as data has a number of benefits
+;; the ability to write code in the same language as data has a number of
+;; benefits:
 ;;   1) it's concise
 ;;   2) data and code meld together cleanly
 ;;   2) has almost no syntax at all
 ;;   3) it's ridiculously simple
 ;;
-;; so the `code` rules:
+;; to `run` some `data`, we simply `eval`uate it.  Evaluation always results
+;; in a new `value` being produced.
+;;
+;; we do this with three rules:
+;;
 ;;   1) literal data (mostly) evaluates to itself, with the exceptions of:
 ;;   2) a symbol evaluates to the value bound to it
 ;;   3) a list evaluates to a `call` (sometimes called a `form`)
 ;;
-;; since rules 2 and 3 make symbols and lists 'special', to specify them as data-literals in
-;; code that gets evaluated, you have to quote them""
+;; since rules 2 and 3 make symbols and lists 'special', to specify them
+;; as data-literals in code that gets evaluated, you have to quote them if you
+;; want to have them be un-special values.  quoting is done with a single
+;; quote (') character, which wraps the rest of the form it preceeds.
+;; It basically tells the evaluator to leave it alone, not dereference it.
+
+;; quote examples:
 
 'freds-bed
 '(1 grocery list)  ;; quoting applies to entire form
 
-;; some forms that can be evaluated as code:
+;; a call form is just a list with a call-target (aka function) as the first
+;; element and the arguments to that call target as the remaining arguments,
+;; and result is the value returned by the target:
+;;
+
 (+ 10 20)            ;; call function core/+ with 10 and 20 as arguments
 (+ 5 (* 10 2))       ;; drag core/* into this, note recursive eval for argument 
 (str "abc" "xyz")    ;; `str` is a function for mashing strings together
-(count [1 2 3 4 5])  ;; `count` is a function for getting the count of a sequence
+(count [1 2 3 4 5])  ;; `count` is a function for getting the number of
+                     ;; elements in a sequence
 
-;; these "calls" to "targets" work like this:
+;; since 'values' are recursively defined, all of this can be arbitrarily
+;; nested.
 
-;; (<target> [arg ...]) -->> <return-value>
-
-;; call the target, with some argument values, and get a value back (always)
-
-;; since 'values' are recursively defined, all of this can be arbitrarily nested.
-
-;; There are 3 types of "target".  Codewise, they look (and feel/act) the same, but they work
+;; So, there are actually 3 types of "target".
+;; Codewise, they look (and feel/act) the same, but they work
 ;; differently internally:
 
 ;; 1)  args -->            <special-form>            --> result (value)
 ;; 2)  args --> (eval) --> <function>                --> result (value)
 ;; 3)  args -->            <macro>        --> (eval) --> result (value)
 
-;; so in the usual 'function' case, you evaluate all of the arguments first, and then
-;; pass those results into the function.
+;; so in the usual 'function' case, you evaluate all of the arguments first,
+;; and then pass those results into the function, and get a result
 ;;
-;; the special forms implement cases where you may not want to blindly evaluate all the
-;; arguments.  Think about short-circuiting, conditionals, declaratives, etc.
+;; the special forms implement cases where you may not want to
+;; blindly evaluate all the arguments.  Think about short-circuiting,
+;; conditionals, declaratives, etc.
 ;;
 ;; macros take literal data, and can transform it (using the full language) into
-;; code that is then subsequently evaluated.  It's meta-programming using the full language,
-;; and this is what makes homoiconicity so damn cool.
+;; code that is then subsequently evaluated.  It's meta-programming using
+;; the full language, and this is what makes homoiconicity so damn cool.
+;; I can use the language to transform the language (which is data)
+;; into different data, which in turn is treated as code.
+;;
+;; [insert catchy ying-yang logo here]
 ;;
 
 ;; some more:
 
-;; 'if' is not a statement, it is special-form that returns the evaluation of  "then" or "else"
-;; part depending on the outcome of the test.  it acts like a function.
+;; 'if' is not a statement, it is special-form that returns the evaluation of
+;; "then" or "else" part depending on the outcome of the test.
+;; it acts like a function.
 (if (= 10 (* 5 2)) "yup" "nope")
 
 ;; but, if we tear it down, we discover it has special behavior
@@ -163,9 +90,18 @@ true false
 ;; since it acts like a function, it composes as one:
 (str "answer is: " (if (= 10 (* 5 2)) "yup" "nope"))
 
+;; the takeaway is this:
+;;
+;; our `code` consists of data (forms) which are (<target> [args...])
+;;
+;; some targets are functions, some are special forms, and some
+;; are macros.  How they are evaluated matters on what they are
+;;
+;; to a developer, they all compose the same.
+
 ;; -------------------------------------
 
-;; Stage 3 - Bootstrapping
+;; Session 3 - Bootstrapping
 
 ;; special form 'def' - bind a symbol to an expression.  Bindings are what `bind` values to symbols.
 

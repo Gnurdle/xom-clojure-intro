@@ -1,210 +1,9 @@
-(ns warmups.core
-  (:gen-class))
-
-;; Stage 1: Data
-;;
-;; An extensible data notation - EDN primer
-;; https://github.com/edn-format/edn
-;;
-;; building-blocks of "data":
-
-;; the `nothing`
-nil
-
-;; bool
-true false
-
-;; numbers 
-100   ;; int
-100.5 ;; float
-22/7  ;; ratio
-123123123123123123123123123123123123123123123123123N ;; bigint (N)
-3.1415926535897932384626433832795028841971693993751058209749445923078164M ;; bigdec (M)
-
-;; strings
-"hello" "now go \"away\""
-
-;; chars 
-\a \z \1 \*
-
-;; regexs
-#"^a.*z%"
-
-;; the "extensible part" - tagged literals <tag> <str>, they can be passively conveyed.
-#uuid "f81d4fae-7dec-11d0-a765-00a0c91e6bf6"
-#inst "2018-03-28T10:48:00.000"
-
-;; Symbols
-;; - start with non-numeric
-;; - rest [:alphanum: *+!-_'?]
-;; - (ignore leading quote for now, not part of symbol)
-'x
-'x42
-'your-mom's-phone-number
-'us+them
-'*i-cant-hear-YOU*
-'S...O---S...!
-'my#munny->mybank!!!
-
-;; the domain of symbols be kind of jolting to somebody that reads a lot of c-style code
-
-;; Keywords (interns to itself, think 'enum')
-:im-a-keyword :street-address :email
-
-;; Namespaces
-'math/pi :data/phone-number 'math.com/PI
-
-;; Aggregates
-
-'(1 "two" 3)                             ;; list, vis std::list (again that quote thing)
-[10 "twenty" 30]                         ;; vector, vis std::vector
-#{:a 14 101.2 "feline"}                  ;; set, vis std::set
-{:a 10 :b "hello" 14 "world" :pi 22/7}   ;; map, vis std::map
-
-;; all of these can be nested/composed arbitrarily
-[{:a 10 :b "x"} ["one" "two" ["eleven" "twelve"]]]
-{:name "Billy Bob"
- :us-citizen true
- :spouse "Crystal" :favorite-charity nil
- :smoker false :drinker true
- :id #uuid "f81d4fae-7dec-11d0-a765-00a0c91e6bf6"
- :residence-type :trailer
- :children [{:name "scooter" :age 4 :gender :m}
-            {:name "daisy"   :age 6 :gender :f}
-            {:name "bubba"   :age 9 :gender :u}]
- :favorite-foods #{"beer" "bbq" "venison"}}
-
-;; and that's all there is to EDN data
-
-;; could think about it like a super-JSON, which adds boolean literals, ratio, bigint, bigdec
-;; symbols, keywords, tagged literals, namespaces, and specificity in aggregations with
-;; lists, vectors, sets, and maps.
-;;
-;; or not, JSON doesn't really do all that much...
-;;
-;; the proposal is that with these building blocks, you can model any kind of data-at-rest
-;; found in the wild without having to water it down, or subject it to ambiguity induction
-;; (like modelling dates as strings, not differentiating numeric types, only having two
-;; aggregation mechanisms (object and vector)
-;;
-;; so that is data - a good balance between machine and human readability
+(ns warmups.functional)
 
 ;; -------------------------------------
+;; Session  4 - getting all functional
 
-;; Stage 2 - Homoiconicity -> using data to create code
-
-;; with a couple of rules, we can use our ability to create data to create code,
-;; which when evaluated,  yield programs.
-;;
-;; the ability to write code in the same language as data has a number of benefits
-;;   1) it's concise
-;;   2) data and code meld together cleanly
-;;   2) has almost no syntax at all
-;;   3) it's ridiculously simple
-;;
-;; so the `code` rules:
-;;   1) literal data (mostly) evaluates to itself, with the exceptions of:
-;;   2) a symbol evaluates to the value bound to it
-;;   3) a list evaluates to a `call` (sometimes called a `form`)
-;;
-;; since rules 2 and 3 make symbols and lists 'special', to specify them as data-literals in
-;; code that gets evaluated, you have to quote them""
-
-'freds-bed
-'(1 grocery list)  ;; quoting applies to entire form
-
-;; some forms that can be evaluated as code:
-(+ 10 20)            ;; call function core/+ with 10 and 20 as arguments
-(+ 5 (* 10 2))       ;; drag core/* into this, note recursive eval for argument 
-(str "abc" "xyz")    ;; `str` is a function for mashing strings together
-(count [1 2 3 4 5])  ;; `count` is a function for getting the count of a sequence
-
-;; these "calls" to "targets" work like this:
-
-;; (<target> [arg ...]) -->> <return-value>
-
-;; call the target, with some argument values, and get a value back (always)
-
-;; since 'values' are recursively defined, all of this can be arbitrarily nested.
-
-;; There are 3 types of "target".  Codewise, they look (and feel/act) the same, but they work
-;; differently internally:
-
-;; 1)  args -->            <special-form>            --> result (value)
-;; 2)  args --> (eval) --> <function>                --> result (value)
-;; 3)  args -->            <macro>        --> (eval) --> result (value)
-
-;; so in the usual 'function' case, you evaluate all of the arguments first, and then
-;; pass those results into the function.
-;;
-;; the special forms implement cases where you may not want to blindly evaluate all the
-;; arguments.  Think about short-circuiting, conditionals, declaratives, etc.
-;;
-;; macros take literal data, and can transform it (using the full language) into
-;; code that is then subsequently evaluated.  It's meta-programming using the full language,
-;; and this is what makes homoiconicity so damn cool.
-;;
-
-;; some more:
-
-;; 'if' is not a statement, it is special-form that returns the evaluation of  "then" or "else"
-;; part depending on the outcome of the test.  it acts like a function.
-(if (= 10 (* 5 2)) "yup" "nope")
-
-;; but, if we tear it down, we discover it has special behavior
-(if (= 10 (* 5 2))
-  (do
-    (println "then-case")
-    "yup")
-  (do
-    (println "else-case")))
-
-;; nothing in the unused branch gets evaluated
-;; since it acts like a function, it composes as one:
-(str "answer is: " (if (= 10 (* 5 2)) "yup" "nope"))
-
-;; -------------------------------------
-
-;; Stage 3 - Bootstrapping
-
-;; special form 'def' - bind a symbol to an expression.  Bindings are what `bind` values to symbols.
-
-(def aa 42)
-(def bb "kittycat")
-(def cc (str "merry-go-round" "broke " "down "))
-
-(str aa bb cc)
-
-;; and functions - yeah, you knew this was coming....
-
-(fn [a b]
-  (+ a b))
-
-;; what we have done was invoke the 'fn' special form, with first argument as a vector of symbols,
-;; and then a body which have those symbols bound to the arguments (in it's scope).
-
-;; the return value of a function is result of evaluating the last form
-
-;; nice, but where did that go?  It went *poof* right into the garbage pile, just like any value
-
-;; now we bind it to something to get it to stick around
-(def add-em (fn [a b] (+ a b)))
-(add-em 3 8)
-
-;; common pattern, so 'defn' (define fn) is macro-based sugar
-(defn add-em
-  [a b]
-  (+ a b))
-
-;; an insightful peek under the (macro) sheets
-(macroexpand '(defn add-em
-                [a b]
-                (+ a b)))
-
-;; -------------------------------------
-;; Stage 4 - getting functional
-
-;; functions are first-class, aka they act like any other value,
+;; functions are first-class, aka they act like any other value
 ;;
 ;; for example (+ 3 5) and (fn [a b] (+ a b)) both return values
 ;;
@@ -252,13 +51,24 @@ my-ops
 ;; so
 ((:mul my-ops) 7 4)
 
+;; yeah, all of that is pretty weird.  Our data structures are also
+;; functions, which let us look things up in them when they are used
+;; that way.  It's odd, but powerful...
+
+;; -----------------------------------------------------------------------
+
 ;; higher order functions:
 ;; basically means functions can be passed as arguments, and
 ;; functions can return functions
 
+;; functions return their last form as a value, right?
+(defn fourty-two []
+  42)
+(fourty-two)
+
+;; but, functions are values to, so
 (defn add-42 []
   (fn [a] (+ 42 a)))
-
 (add-42)
 ((add-42) 10)
 
@@ -275,28 +85,34 @@ my-ops
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Stage 5 - transition from imperative to functional mindset (this will be painful)
+;; Stage 5 - transition from imperative to functional mindset
+;; (this will be painful)
 
 ;; some insights:
 ;;
 ;;  - imperative programming consists of "a lot of do" - Stu Halloway
 ;; 
-;;  - it has to do with banging and mutating specific places (memory and records)
+;;  - it has to do with banging and mutating specific places (memory and
+;;    records)
 ;;
-;;  - the words "memory" and "record" had meaning before I.T. co-opted them into their mythos
+;;  - the words "memory" and "record" had meaning before I.T. co-opted them
+;;    into their mythos:
 ;;
 ;;  - Rich Hickey dubbed this "PLace Oriented Programming" (or PLOP)
 ;;
-;;  - you can recognize that you are doing PLOP when things are changing over time
+;;  - you can recognize that you are doing PLOP when things are changing
+;;    over time
 ;;
 ;;  - objects are simply abstractions over places.
 ;;
-;;  - we use things like 'git' ourselves, because if we used PLOP to manage our
-;;    artifacts (source code),  we could never be able to reason about what the hell is going on.
+;;  - we use things like 'git' ourselves, because if we used PLOP to manage
+;;    our artifacts (source code),  we could never be able to reason about
+;;    what the hell is going on.
 ;;
-;;  - a core limitation of unbridled mutation is that any concurrent processing has to be
-;;    coordinated with locks, to prevent things from getting into inconsistent states.  Locking
-;;    is *HARD* and it doesn't compose - Stop the world while I look at it, or change it.
+;;  - a core limitation of unbridled mutation is that any concurrent
+;;    processing has to be coordinated with locks, to prevent things from
+;;    getting into inconsistent states.  Locking is *HARD* and it doesn't
+;;    compose - Stop the world while I look at it, or change it.
 ;;    as (n-1) cores sit on their hands...
 ;;
 ;;  - Inheritence was a bad dream that (most) people have woken up from.
@@ -339,16 +155,17 @@ my-ops
 ;;   return out;
 
 ;; map, filter, and reduce are higher order functions that do the same things
-;; as the imparitive boilerplate forms above
+;; as the imparitive boilerplate forms above, except they take functions
+;; to fill in the blanks....
 
 (map (add-42) [1 2 3 4 5])
 (filter odd? [1 2 3 4 5 6 7])
 (reduce *  [1 2 3 4 5])
 
-;; while these aren't every type of process, it happens that these cover a lot of them
+;; while these aren't every type of process, it happens that these cover a
+;; whole lot of them
 
-;; things which don't fit these are handled by recursion
-
+;; things which don't fit these templates can be handled by recursion
 (defn fact [x]
   (if (< x 2)
     1
@@ -373,8 +190,9 @@ my-ops
       a
       (recur (* x a) (dec x)))))
 
-;; you cannot place recur anywhere that isn't in the tail position of a loop/function
-;; so in some ways it's more helpful that presuming TCR is in play when it isn't
+;; you cannot place recur anywhere that isn't in the tail position of a
+;; loop/function, so in some ways it's more helpful than presuming TCR is
+;; in play when it isn't
 
 (def biggen (fact2 60000M))
 (count (str biggen))
@@ -394,7 +212,8 @@ my-ops
 ;;
 ;; most of these have to do with homoginizing the collection types
 ;;
-;; for example `map` works on sequences, so it can take a list, set, map, or vector
+;; for example `map` works on sequences, so it can take a list, set, map,
+;; or vector
 
 (map inc [1 2 3 4 5])
 (map inc '(1 2 3 4 5))
@@ -405,8 +224,10 @@ my-ops
 
 ;; so a brief aside on data structures:
 
-;; list - `first` is cheap, `last` is O(n), `nth` is linear time, `conj` adds to front
-;; vector - `first` is cheap, `last` is cheap, `nth` is cheap, `conj` adds to end
+;; list - `first` is cheap, `last` is O(n), `nth` is linear time,
+;; `conj` adds to front
+;; vector - `first` is cheap, `last` is cheap, `nth` is cheap,
+;; `conj` adds to end
 
 ;; a side-issue is that map 
 
